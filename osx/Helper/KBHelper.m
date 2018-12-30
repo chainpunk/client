@@ -103,8 +103,8 @@
     [KBKext copyWithSource:args[@"source"] destination:args[@"destination"] removeExisting:YES completion:completion];
   } else if ([method isEqualToString:@"remove"]) {
     [self remove:args[@"path"] completion:completion];
-  } else if ([method isEqualToString:@"move"]) {
-    [self moveFromSource:args[@"source"] destination:args[@"destination"] overwriteDestination:YES asUID:uid completion:completion];
+  } else if ([method isEqualToString:@"uninstallAppBundle"]) {
+    [self uninstallAppBundle:completion];
   } else if ([method isEqualToString:@"createDirectory"]) {
     [self createDirectory:args[@"directory"] uid:args[@"uid"] gid:args[@"gid"] permissions:args[@"permissions"] excludeFromBackup:[args[@"excludeFromBackup"] boolValue] completion:completion];
   } else if ([method isEqualToString:@"addToPath"]) {
@@ -440,30 +440,11 @@
   return nil;
 }
 
-- (void)moveFromSource:(NSString *)source destination:(NSString *)destination overwriteDestination:(BOOL)overwriteDestination asUID:(uid_t)uid completion:(void (^)(NSError *error, id value))completion {
+- (void)uninstallAppBundle:(void (^)(NSError *error, id value))completion {
   NSError *error = nil;
-
-  uid_t orig_uid = 0;
-  BOOL did_setuid = NO;
-
-  if (![self _checkUID:uid inGroup:"admin"]) {
-    KBLog(@"User %d wasn't in group admin, so seteuid to it", uid);
-    did_setuid = YES;
-    orig_uid = getuid();
-    if (seteuid(uid) != 0) {
-      KBLog(@"Failed to setuid to %d", uid);
-      completion(KBMakeError(-1, @"Failed to seteuid on move command"), nil);
-      return;
-    }
-  }
+  NSString *source = @"/Applications/Keybase.app";
+  NSString *destination = @"/tmp/Keybase.app";
   error = [self _moveFromSource:source destination:destination];
-  if (did_setuid && seteuid(orig_uid) != 0) {
-      KBLog(@"Fatal error: failed to seteuid back to %d", orig_uid);
-      [[NSException
-        exceptionWithName:@"BadSetuidException"
-        reason:@"Failed to seteuid back to root"
-        userInfo:nil] raise];
-  }
   if (error == nil) {
     completion(nil, @{});
   } else {
